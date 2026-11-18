@@ -1,0 +1,24 @@
+{
+  "api_id": 0,
+  "api_hash": "",
+  "session_name": "mrkt_session",
+  "max_channels": 5,
+  "check_interval_sec": 120,
+  "join_delay_sec": [
+    15,
+    35
+  ],
+  "giveaway_delay_sec": [
+    5,
+    15
+  ],
+  "validation_timeout_sec": 90,
+  "leave_after_end": true,
+  "allow_premium_only": false,
+  "skip_channels": [],
+  "proxy": null,
+  "bot_token": "",
+  "mute_and_archive": true,
+  "block_request_bots": true,
+  "never_block": []
+}
