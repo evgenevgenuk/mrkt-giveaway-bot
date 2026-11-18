@@ -38,6 +38,16 @@ python bot.py
 Команди (відповідає тільки власнику, тобто акаунту, з якого залогінений юзербот):
 `/status` `/list` `/run` (перевірити зараз) `/pause` `/resume`
 
+## Хостинг 24/7 (Render + UptimeRobot, безплатно)
+1. `python export_session.py` створює `.env.render` з усіма секретами (сесія = повний доступ до акаунта, нікому не давай).
+2. https://render.com: входиш через GitHub, далі **New → Blueprint**, обираєш репо `mrkt-giveaway-bot` (Render сам прочитає `render.yaml`).
+   Якщо Blueprint не підходить, тисни **New → Web Service**, Build `pip install -r requirements.txt`, Start `python bot.py`, план Free.
+3. Відкриваєш Environment → **Add from .env** і вставляєш вміст `.env.render`.
+4. **Локальний бот має бути вимкнений**, бо одна сесія у двох місцях = ризик, що Telegram її скине.
+5. https://uptimerobot.com: Add monitor → HTTP(s) → `https://<твій-сервіс>.onrender.com/` → кожні 5 хв (інакше Render присипляє сервіс через 15 хв).
+
+Стан (`state.json`) на сервері зберігається в «Збраному» твого Telegram-акаунта (файл `#mrkt_state`). Не видаляй його.
+
 ## Файли
 - `state.json` — у яких розіграшах уже бере участь і від чого треба відписатись
 - `bot.log` — лог
