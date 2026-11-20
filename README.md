@@ -44,7 +44,8 @@ python bot.py
    Якщо Blueprint не підходить, тисни **New → Web Service**, Build `pip install -r requirements.txt`, Start `python bot.py`, план Free.
 3. Відкриваєш Environment → **Add from .env** і вставляєш вміст `.env.render`.
 4. **Локальний бот має бути вимкнений**, бо одна сесія у двох місцях = ризик, що Telegram її скине.
-5. https://uptimerobot.com: Add monitor → HTTP(s) → `https://<твій-сервіс>.onrender.com/` → кожні 5 хв (інакше Render присипляє сервіс через 15 хв).
+5. Регіон сервісу — **Frankfurt (EU)**: з США MRKT відповідає 403 "Forbidden Section: Playhub" і не зараховує участь.
+6. https://uptimerobot.com: Add monitor → HTTP(s) → `https://<твій-сервіс>.onrender.com/` → кожні 5 хв (інакше Render присипляє сервіс через 15 хв).
 
 Стан (`state.json`) на сервері зберігається в «Збраному» твого Telegram-акаунта (файл `#mrkt_state`). Не видаляй його.
 

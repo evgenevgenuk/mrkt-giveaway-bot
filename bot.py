@@ -83,6 +83,8 @@ class Control:
         self.started = time.time()
         self.last_pass: str = "ще не було"
         self.stats = {"joined": 0, "won": 0, "errors": 0}
+        self.blocked_until = 0.0     # MRKT віддає 403 Forbidden Section (блок за регіоном)
+        self.blocked_notified = 0.0
         self.state: dict | None = None
         self.tg: TelegramClient | None = None
 
@@ -158,13 +160,23 @@ class Control:
     def list_text(self) -> str:
         items = sorted((self.state or {}).get("joined", {}).items(),
                        key=lambda kv: kv[1].get("at", 0), reverse=True)[:15]
-        if not items:
-            return "Поки що ні в чому не бере участь"
         lines = []
         for gid, v in items:
-            mark = "🏆" if v.get("won") else ("✅" if parse_dt(v.get("endAt")) > time.time() else "⌛")
-            lines.append(f"{mark} {', '.join('@' + c for c in v.get('channels', []))} — до {fmt_dt(v.get('endAt'))}")
-        return "Останні розіграші:\n" + "\n".join(lines)
+            chans = ", ".join("@" + c for c in v.get("channels", []))
+            if v.get("won"):
+                lines.append(f"🏆 ВИГРАВ — {chans}")
+            elif parse_dt(v.get("endAt")) > time.time():
+                lines.append(f"✅ участь прийнята — {chans} (кінець {fmt_dt(v.get('endAt'))})")
+            else:
+                lines.append(f"🏁 завершився, не виграв — {chans}")
+        pend = (self.state or {}).get("pending", {})
+        out = "Розіграші з прийнятою участю:\n" + ("\n".join(lines) if lines else "поки нема")
+        if pend:
+            out += "\n\n⏳ Чекають схвалення заявки в канал:\n" + "\n".join(
+                f"@{p['channel']}" for p in pend.values())
+        if CTL.blocked_until > time.time():
+            out += "\n\n⛔ MRKT зараз блокує підтвердження участі з цього сервера (регіон)."
+        return out
 
 
 HELP = ("Команди:\n"
@@ -299,6 +311,10 @@ class MrktError(Exception):
     pass
 
 
+class MrktRegionBlocked(MrktError):
+    """403 "Forbidden Section: Playhub" — MRKT не пускає в розіграші з IP цього сервера."""
+
+
 class Mrkt:
     def __init__(self, tg: TelegramClient, proxy: str | None):
         self.tg = tg
@@ -338,6 +354,8 @@ class Mrkt:
         if r.status_code == 401 and _retry:
             await self.auth()
             return await self.req(method, path, params=params, json_body=json_body, _retry=False)
+        if r.status_code == 403 and "forbidden section" in r.text.lower():
+            raise MrktRegionBlocked(f"{method} {path} -> 403 {r.text[:200]}")
         if r.status_code != 200:
             raise MrktError(f"{method} {path} -> {r.status_code} {r.text[:300]}")
         try:
@@ -718,10 +736,11 @@ def setup_bot_blocker(tg: TelegramClient, cfg: dict, state: dict) -> None:
         try:
             await tg(BlockRequest(id=await tg.get_input_entity(sender)))
             await tg(EditPeerFoldersRequest([InputFolderPeer(await tg.get_input_entity(sender), folder_id=1)]))
-            log.info("🚫 Заблокував бота @%s (написав після заявки)", sender.username)
-            await CTL.notify(f"🚫 Заблокував бота @{sender.username} — написав після заявки в канал")
+            who = f"@{sender.username}" if sender.username else (sender.first_name or f"id {sender.id}")
+            log.info("🚫 Заблокував бота %s (написав після заявки)", who)
+            await CTL.notify(f"🚫 Заблокував бота {who} — написав після заявки в канал")
         except Exception as e:
-            log.warning("не вдалось заблокувати @%s: %s", sender.username, e)
+            log.warning("не вдалось заблокувати бота id %s: %s", sender.id, e)
 
 
 async def leave_finished(tg, state: dict) -> None:
@@ -778,6 +797,17 @@ async def one_pass(tg, api: Mrkt, cfg: dict, state: dict, dry: bool, my_id: int 
             break
         try:
             await handle_giveaway(tg, api, g, cfg, state)
+        except MrktRegionBlocked as e:
+            # не рахуємо як невдачу розіграшу — це блок сервера, а не розіграшу
+            CTL.blocked_until = time.time() + 3600
+            log.error("⛔ MRKT блокує підтвердження участі з цього сервера: %s", e)
+            if time.time() - CTL.blocked_notified > 6 * 3600:
+                CTL.blocked_notified = time.time()
+                await CTL.notify("⛔ MRKT блокує підтвердження участі з IP цього сервера "
+                                 "(403 Forbidden Section: Playhub). Підписки йдуть, але участь не "
+                                 "зараховується. Потрібен сервер в іншому регіоні.")
+            save_state(state)
+            break
         except MrktError as e:
             log.warning("  помилка MRKT: %s", e)
             CTL.stats["errors"] += 1
