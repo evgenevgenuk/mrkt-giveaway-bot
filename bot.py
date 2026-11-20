@@ -211,7 +211,10 @@ def load_config() -> dict:
         for line in env_file.read_text(encoding="utf-8-sig").splitlines():
             if "=" in line and not line.lstrip().startswith("#"):
                 k, v = line.split("=", 1)
-                os.environ.setdefault(k.strip(), v.strip())
+                v = v.strip()
+                if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
+                    v = v[1:-1]  # KEY="value" (так експортує Render)
+                os.environ.setdefault(k.strip(), v)
     raw =json.loads(CONFIG_PATH.read_text(encoding="utf-8")) if CONFIG_PATH.exists() else {}
     cfg = {**DEFAULTS, **raw}
     env = os.environ
