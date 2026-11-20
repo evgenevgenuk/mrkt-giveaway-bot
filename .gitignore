@@ -6,3 +6,4 @@ state.tmp
 bot.log
 .env*
 __pycache__/
+console.log

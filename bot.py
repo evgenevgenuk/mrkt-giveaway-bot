@@ -206,7 +206,13 @@ def save_owner_ids(ids: list) -> None:
 
 def load_config() -> dict:
     """config.json (локально) або змінні середовища (сервер: Render тощо)."""
-    raw = json.loads(CONFIG_PATH.read_text(encoding="utf-8")) if CONFIG_PATH.exists() else {}
+    env_file = BASE / ".env"  # KEY=VALUE поруч з bot.py (для запуску на ПК)
+    if env_file.exists():
+        for line in env_file.read_text(encoding="utf-8-sig").splitlines():
+            if "=" in line and not line.lstrip().startswith("#"):
+                k, v = line.split("=", 1)
+                os.environ.setdefault(k.strip(), v.strip())
+    raw =json.loads(CONFIG_PATH.read_text(encoding="utf-8")) if CONFIG_PATH.exists() else {}
     cfg = {**DEFAULTS, **raw}
     env = os.environ
     if env.get("API_ID"):
